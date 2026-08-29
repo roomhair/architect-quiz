@@ -27,17 +27,22 @@ node build-standalone.js
 
 ## 公開（GitHub Pages）
 
-`.github/workflows/pages.yml` が `main` と作業ブランチへの push で走り、リポジトリの中身を
-そのまま GitHub Pages にデプロイする。公開URLは:
+`.github/workflows/pages.yml` がリポジトリの中身をそのまま GitHub Pages にデプロイする。
+公開URLは:
 
 ```
 https://roomhair.github.io/architect-quiz/
 ```
 
-**リポジトリが private のままだと Pages は使えない**（private リポジトリからの Pages 公開は
-有料プラン限定）。Settings → General → Danger Zone → Change visibility から public にすること。
-Pages 自体はワークフロー内の `actions/configure-pages@v5` が有効化を試みるが、
-失敗する場合は Settings → Pages → Build and deployment → Source を **GitHub Actions** にする。
+公開するには、先に次の2つをリポジトリの設定画面で済ませておく必要がある。
+
+1. **Settings → General → Danger Zone → Change visibility** で public にする
+   （private リポジトリからの Pages 公開は有料プラン限定のため）
+2. **Settings → Pages → Build and deployment → Source** を **GitHub Actions** にする
+
+ワークフローは `build`（全ブランチ）と `deploy`（`main` のみ）に分かれている。
+Pages 環境は既定でデフォルトブランチからのデプロイしか許可しないため、
+実際に公開するには変更を `main` にマージする。
 
 ワークフローは、`dist/architect-quiz.html` が最新のソースから作り直された状態かどうかも
 確認する。`js/data.js` などを編集したら `node build-standalone.js` を実行してコミットすること。
