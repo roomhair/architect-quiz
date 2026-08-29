@@ -25,6 +25,23 @@ node build-standalone.js
 キーボードでも解答できる（`A S D F G H J K L Z X C V` が13人に対応、`Enter` で次へ）。
 右上のボタンでライト／ダーク配色を切り替え（設定は localStorage に保存）。
 
+## 公開（GitHub Pages）
+
+`.github/workflows/pages.yml` が `main` と作業ブランチへの push で走り、リポジトリの中身を
+そのまま GitHub Pages にデプロイする。公開URLは:
+
+```
+https://roomhair.github.io/architect-quiz/
+```
+
+**リポジトリが private のままだと Pages は使えない**（private リポジトリからの Pages 公開は
+有料プラン限定）。Settings → General → Danger Zone → Change visibility から public にすること。
+Pages 自体はワークフロー内の `actions/configure-pages@v5` が有効化を試みるが、
+失敗する場合は Settings → Pages → Build and deployment → Source を **GitHub Actions** にする。
+
+ワークフローは、`dist/architect-quiz.html` が最新のソースから作り直された状態かどうかも
+確認する。`js/data.js` などを編集したら `node build-standalone.js` を実行してコミットすること。
+
 ## 出題される建築家（13人）
 
 隈研吾 / 安藤忠雄 / SANAA / 伊東豊雄 / 坂茂 / 原広司 / 内藤廣 / 藤本壮介 /
@@ -85,4 +102,5 @@ js/app.js       出題ロジック、画像取得、採点、結果表示
 images/         自前の写真を置く場所（初期状態では空）
 dist/           1ファイル版の出力先
 build-standalone.js  css/js を index.html に埋め込んで dist/ に書き出す
+.github/workflows/pages.yml  GitHub Pages への自動デプロイ
 ```
