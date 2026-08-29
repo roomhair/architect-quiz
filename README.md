@@ -12,6 +12,13 @@ python3 -m http.server 8000
 # → http://localhost:8000
 ```
 
+配布・共有には `dist/architect-quiz.html` を使う。CSS と JS を埋め込んだ1ファイル版で、
+ダブルクリックするだけで動く。`js/data.js` などを編集したら作り直すこと:
+
+```
+node build-standalone.js
+```
+
 出題数は 10問 / 20問 / 全39問 から選べる。同じ建築家に偏らないよう、
 建築家ごとに1問ずつ取っていく順で候補を作ってからシャッフルしている。
 
@@ -76,4 +83,6 @@ css/style.css   配色トークン、レイアウト、ライト・ダーク両�
 js/data.js      建築家13人と問題39問のデータ
 js/app.js       出題ロジック、画像取得、採点、結果表示
 images/         自前の写真を置く場所（初期状態では空）
+dist/           1ファイル版の出力先
+build-standalone.js  css/js を index.html に埋め込んで dist/ に書き出す
 ```
