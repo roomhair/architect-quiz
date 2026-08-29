@@ -703,11 +703,19 @@ const QUIZ = {
    data.js が定義する QUIZ を読んで動く。QUIZ の形は data.js の
    先頭コメントを参照。このファイルは題材を知らないので、別の
    クイズを作るときは data.js だけ差し替えればよい。
+
+   題材ごとに変えたくなるところは QUIZ の任意フックで差し替える。
+   未指定なら既定の動きになる。
+     keys        キーボードショートカットに使う文字の並び
+     distractors (question, pool, n) => ダミーの選択肢。既定はプールからランダム
+     detailSub   (q, answer) => 解説カードの2行目（学名など）
+     reviewSub   (q, answer) => 結果一覧の副題。既定は正解の名前
+     roster      () => スタート画面の一覧のHTML。既定は選択肢の平坦な一覧
    ========================================================= */
 
 const $ = (id) => document.getElementById(id);
 const byId = Object.fromEntries(QUIZ.choices.map((c) => [c.id, c]));
-const KEYS = 'ASDFGHJKLZXCVBNM'.split(''); // 選択肢に順に割り当てるショートカット
+const KEYS = (QUIZ.keys || 'ASDFGHJKLZXCVBNM').split(''); // 選択肢に順に割り当てるショートカット
 
 const state = {
   queue: [],       // { question, choices } の配列
@@ -790,12 +798,16 @@ function shuffle(arr) {
 }
 
 // その問題で並べる選択肢。choicesPerQuestion が選択肢総数より少なければ、
-// 正解＋ランダムなダミーを抜き出す。0 や未指定なら常に全選択肢。
+// 正解＋ダミーを抜き出す。0 や未指定なら常に全選択肢。
+// ダミーの選び方は QUIZ.distractors(question, pool, n) で差し替えられる。
+// 未指定ならプールからランダムに取る。
 function choicesFor(q) {
   const n = QUIZ.choicesPerQuestion;
   if (!n || n >= QUIZ.choices.length) return QUIZ.choices;
-  const distractors = shuffle(QUIZ.choices.filter((c) => c.id !== q.answer)).slice(0, n - 1);
-  return shuffle([byId[q.answer], ...distractors]);
+  const pool = QUIZ.choices.filter((c) => c.id !== q.answer);
+  const decoys = (QUIZ.distractors ? QUIZ.distractors(q, pool, n - 1) : shuffle(pool))
+    .slice(0, n - 1);
+  return shuffle([byId[q.answer], ...decoys]);
 }
 
 // できるだけ正解が偏らないように出題を選ぶ
@@ -828,18 +840,27 @@ function showScreen(name) {
 
 /* ---------- スタート画面 ---------- */
 
+// 対応する要素が無い題材もあるので、見つからなければ黙って飛ばす
+function fill(id, html) {
+  const el = $(id);
+  if (el && html != null) el.innerHTML = html;
+}
+
 function applyCopy() {
   document.title = QUIZ.title;
-  $('site-title').textContent = QUIZ.title;
-  $('lead').innerHTML = QUIZ.lead;
-  $('prompt').textContent = QUIZ.prompt;
-  $('roster-title').textContent = QUIZ.rosterTitle;
-  $('credit').textContent = QUIZ.credit;
-  $('choices').setAttribute('aria-label', QUIZ.rosterTitle);
+  fill('site-title', QUIZ.title);
+  fill('lead', QUIZ.lead);
+  fill('lead-sub', QUIZ.leadSub);
+  fill('prompt', QUIZ.prompt);
+  fill('roster-title', QUIZ.rosterTitle);
+  fill('roster-count', QUIZ.rosterCount);
+  fill('credit', QUIZ.credit);
+  $('choices').setAttribute('aria-label', QUIZ.prompt);
 
-  $('roster-list').innerHTML = QUIZ.choices
-    .map((c) => `<li>${c.name}<span>${c.sub || ''}</span></li>`)
-    .join('');
+  // 一覧の見せ方は QUIZ.roster() で差し替えられる（グループ分けしたい題材向け）
+  $('roster-list').innerHTML = QUIZ.roster
+    ? QUIZ.roster()
+    : QUIZ.choices.map((c) => `<li>${c.name}<span>${c.sub || ''}</span></li>`).join('');
 
   // 出題数の選択肢は問題数に合わせて出し入れする
   document.querySelectorAll('.seg-btn').forEach((btn) => {
@@ -962,6 +983,13 @@ function answer(choiceId) {
   $('detail-meta').textContent = QUIZ.meta(q, byId[q.answer]);
   $('detail-note').textContent = q.note;
 
+  const sub = $('detail-sub');
+  if (sub) {
+    const text = QUIZ.detailSub ? QUIZ.detailSub(q, byId[q.answer]) : '';
+    sub.textContent = text || '';
+    sub.hidden = !text;
+  }
+
   const page = q._source && q._source.page;
   const link = $('detail-link');
   link.hidden = !page;
@@ -1003,16 +1031,20 @@ function showResult() {
   $('result-total').textContent = total;
   $('result-comment').textContent = comment;
 
-  $('review-list').innerHTML = state.answers.map(({ question: q, picked, correct: ok }) => `
+  $('review-list').innerHTML = state.answers.map(({ question: q, picked, correct: ok }) => {
+    const answer = byId[q.answer];
+    const sub = QUIZ.reviewSub ? QUIZ.reviewSub(q, answer) : answer.name;
+    return `
     <li>
       <span class="mark ${ok ? 'ok' : 'ng'}">${ok ? '○' : '×'}</span>
       <span class="review-body">
         <span class="review-title">${q.title}</span><br>
-        <span class="review-sub">${byId[q.answer].name}${
+        <span class="review-sub">${sub}${
           ok ? '' : ` — 回答: <span class="picked">${byId[picked].name}</span>`
         }</span>
       </span>
-    </li>`).join('');
+    </li>`;
+  }).join('');
 
   showScreen('result');
 }
