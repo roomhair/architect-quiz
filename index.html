@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>建築家あてクイズ</title>
-<meta name="description" content="建築の写真を見て、設計した建築家を13人の中から当てるクイズ。">
+<title>写真あてクイズ</title>
+<meta name="description" content="写真を見て答えを選ぶクイズ。題材は js/data.js が決める。">
 <link rel="stylesheet" href="css/style.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>🏛</text></svg>">
 </head>
 <body>
 
 <header class="site-header">
-  <h1 class="site-title">建築家あてクイズ</h1>
+  <h1 id="site-title" class="site-title"></h1>
   <button id="theme-toggle" class="icon-btn" type="button" aria-label="配色を切り替える">◐</button>
 </header>
 
@@ -19,10 +19,7 @@
 
   <!-- ============ スタート画面 ============ -->
   <section id="screen-start" class="screen">
-    <p class="lead">
-      建築の写真が表示されます。<br>
-      設計した建築家を13人の中から選んでください。
-    </p>
+    <p id="lead" class="lead"></p>
 
     <div class="field">
       <span class="field-label">出題数</span>
@@ -36,7 +33,7 @@
     <button id="btn-start" class="btn btn-primary btn-lg" type="button">スタート</button>
 
     <div class="roster">
-      <p class="roster-title">出題される建築家</p>
+      <p id="roster-title" class="roster-title"></p>
       <ul id="roster-list" class="roster-list"></ul>
     </div>
   </section>
@@ -59,9 +56,9 @@
       <figcaption id="photo-caption" class="photo-caption" hidden></figcaption>
     </figure>
 
-    <p class="prompt">この建築を設計したのは？</p>
+    <p id="prompt" class="prompt"></p>
 
-    <div id="choices" class="choices" role="group" aria-label="建築家を選ぶ"></div>
+    <div id="choices" class="choices" role="group"></div>
 
     <div id="verdict" class="verdict" hidden>
       <p id="verdict-line" class="verdict-line"></p>
@@ -95,10 +92,10 @@
 </main>
 
 <footer class="site-footer">
-  <p>写真は各建築のWikipedia記事の代表画像を実行時に読み込んでいます。著作権は各撮影者に帰属します。</p>
+  <p id="credit"></p>
 </footer>
 
 <script src="js/data.js"></script>
-<script src="js/app.js"></script>
+<script src="js/engine.js"></script>
 </body>
 </html>

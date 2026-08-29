@@ -1,15 +1,19 @@
 'use strict';
 
 /* =========================================================
-   建築家あてクイズ
+   写真あてクイズ エンジン（題材非依存）
+
+   data.js が定義する QUIZ を読んで動く。QUIZ の形は data.js の
+   先頭コメントを参照。このファイルは題材を知らないので、別の
+   クイズを作るときは data.js だけ差し替えればよい。
    ========================================================= */
 
 const $ = (id) => document.getElementById(id);
-const byId = Object.fromEntries(ARCHITECTS.map((a) => [a.id, a]));
-const KEYS = 'ASDFGHJKLZXCV'.split(''); // 選択肢1〜13に割り当てるショートカット
+const byId = Object.fromEntries(QUIZ.choices.map((c) => [c.id, c]));
+const KEYS = 'ASDFGHJKLZXCVBNM'.split(''); // 選択肢に順に割り当てるショートカット
 
 const state = {
-  queue: [],       // 出題する問題の配列
+  queue: [],       // { question, choices } の配列
   index: 0,
   answers: [],     // { question, picked, correct }
   answered: false,
@@ -21,7 +25,7 @@ const state = {
    REST API から記事の代表画像を引く（ja → en の順）。
    結果は sessionStorage にキャッシュする。            */
 
-const IMG_CACHE_KEY = 'archquiz.img.v1';
+const IMG_CACHE_KEY = `quiz.img.${QUIZ.id}.v1`;
 const imgCache = loadCache();
 
 function loadCache() {
@@ -70,9 +74,9 @@ async function resolveImage(q) {
 }
 
 // 次の問題の画像を先読みして待ち時間を減らす
-function prefetch(q) {
-  if (!q) return;
-  resolveImage(q).then((info) => {
+function prefetch(entry) {
+  if (!entry) return;
+  resolveImage(entry.question).then((info) => {
     if (info) { const im = new Image(); im.src = info.url; }
   }).catch(() => {});
 }
@@ -88,26 +92,34 @@ function shuffle(arr) {
   return a;
 }
 
-// できるだけ建築家が偏らないように出題を選ぶ
-function pickQuestions(count) {
-  const byArchitect = new Map();
-  for (const q of shuffle(QUESTIONS)) {
-    if (!byArchitect.has(q.architect)) byArchitect.set(q.architect, []);
-    byArchitect.get(q.architect).push(q);
+// その問題で並べる選択肢。choicesPerQuestion が選択肢総数より少なければ、
+// 正解＋ランダムなダミーを抜き出す。0 や未指定なら常に全選択肢。
+function choicesFor(q) {
+  const n = QUIZ.choicesPerQuestion;
+  if (!n || n >= QUIZ.choices.length) return QUIZ.choices;
+  const distractors = shuffle(QUIZ.choices.filter((c) => c.id !== q.answer)).slice(0, n - 1);
+  return shuffle([byId[q.answer], ...distractors]);
+}
+
+// できるだけ正解が偏らないように出題を選ぶ
+function buildQueue(count) {
+  const byAnswer = new Map();
+  for (const q of shuffle(QUIZ.questions)) {
+    if (!byAnswer.has(q.answer)) byAnswer.set(q.answer, []);
+    byAnswer.get(q.answer).push(q);
   }
-  const groups = shuffle([...byArchitect.values()]);
+  const groups = shuffle([...byAnswer.values()]);
   const picked = [];
-  let round = 0;
-  while (picked.length < QUESTIONS.length) {
+  for (let round = 0; picked.length < QUIZ.questions.length; round++) {
     let added = false;
     for (const g of groups) {
       if (g[round]) { picked.push(g[round]); added = true; }
     }
     if (!added) break;
-    round++;
   }
   const total = count > 0 ? Math.min(count, picked.length) : picked.length;
-  return shuffle(picked.slice(0, total));
+  return shuffle(picked.slice(0, total))
+    .map((question) => ({ question, choices: choicesFor(question) }));
 }
 
 function showScreen(name) {
@@ -119,22 +131,40 @@ function showScreen(name) {
 
 /* ---------- スタート画面 ---------- */
 
-function renderRoster() {
-  $('roster-list').innerHTML = ARCHITECTS
-    .map((a) => `<li>${a.name}<span>${a.years}</span></li>`)
+function applyCopy() {
+  document.title = QUIZ.title;
+  $('site-title').textContent = QUIZ.title;
+  $('lead').innerHTML = QUIZ.lead;
+  $('prompt').textContent = QUIZ.prompt;
+  $('roster-title').textContent = QUIZ.rosterTitle;
+  $('credit').textContent = QUIZ.credit;
+  $('choices').setAttribute('aria-label', QUIZ.rosterTitle);
+
+  $('roster-list').innerHTML = QUIZ.choices
+    .map((c) => `<li>${c.name}<span>${c.sub || ''}</span></li>`)
     .join('');
+
+  // 出題数の選択肢は問題数に合わせて出し入れする
+  document.querySelectorAll('.seg-btn').forEach((btn) => {
+    const n = Number(btn.dataset.count);
+    btn.hidden = n > 0 && n >= QUIZ.questions.length;
+  });
+  const visible = [...document.querySelectorAll('.seg-btn')].filter((b) => !b.hidden);
+  selectCount(visible[0]);
+}
+
+function selectCount(btn) {
+  document.querySelectorAll('.seg-btn').forEach((b) => {
+    b.classList.toggle('is-active', b === btn);
+    b.setAttribute('aria-checked', String(b === btn));
+  });
+  state.requestedCount = Number(btn.dataset.count);
 }
 
 function initStart() {
-  renderRoster();
+  applyCopy();
   document.querySelectorAll('.seg-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.seg-btn').forEach((b) => {
-        b.classList.toggle('is-active', b === btn);
-        b.setAttribute('aria-checked', String(b === btn));
-      });
-      state.requestedCount = Number(btn.dataset.count);
-    });
+    btn.addEventListener('click', () => selectCount(btn));
   });
   $('btn-start').addEventListener('click', startQuiz);
 }
@@ -142,37 +172,30 @@ function initStart() {
 /* ---------- 出題 ---------- */
 
 function startQuiz() {
-  state.queue = pickQuestions(state.requestedCount);
+  state.queue = buildQueue(state.requestedCount);
   state.index = 0;
   state.answers = [];
   showScreen('quiz');
-  renderChoices();
   renderQuestion();
 }
 
-function renderChoices() {
+function renderChoices(choices) {
   const box = $('choices');
   box.innerHTML = '';
-  ARCHITECTS.forEach((a, i) => {
+  choices.forEach((c, i) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'choice';
-    btn.dataset.architect = a.id;
-    btn.innerHTML = `<span class="key">${KEYS[i] || ''}</span>${a.name}`;
-    btn.addEventListener('click', () => answer(a.id));
+    btn.dataset.choice = c.id;
+    btn.innerHTML = `<span class="key">${KEYS[i] || ''}</span>${c.name}`;
+    btn.addEventListener('click', () => answer(c.id));
     box.appendChild(btn);
   });
 }
 
-function resetChoices() {
-  document.querySelectorAll('.choice').forEach((btn) => {
-    btn.disabled = false;
-    btn.classList.remove('is-correct', 'is-wrong', 'is-dim');
-  });
-}
-
 async function renderQuestion() {
-  const q = state.queue[state.index];
+  const entry = state.queue[state.index];
+  const q = entry.question;
   state.answered = false;
 
   $('progress-text').textContent = `${state.index + 1} / ${state.queue.length}`;
@@ -181,7 +204,7 @@ async function renderQuestion() {
 
   $('verdict').hidden = true;
   $('photo-caption').hidden = true;
-  resetChoices();
+  renderChoices(entry.choices);
 
   const frame = $('photo-frame');
   const img = $('photo-img');
@@ -192,17 +215,17 @@ async function renderQuestion() {
 
   const token = q.id;                       // 読み込み中に次へ進んだ場合の取り違え防止
   const info = await resolveImage(q);
-  if (state.queue[state.index].id !== token) return;
+  if (state.queue[state.index].question.id !== token) return;
 
   if (!info) { failPhoto('写真を読み込めませんでした。<br>オフラインの可能性があります。'); return; }
 
   img.onload = () => {
-    if (state.queue[state.index].id !== token) return;
+    if (state.queue[state.index].question.id !== token) return;
     frame.classList.remove('is-loading');
     frame.classList.add('is-ready');
   };
   img.onerror = () => {
-    if (state.queue[state.index].id !== token) return;
+    if (state.queue[state.index].question.id !== token) return;
     failPhoto('写真を読み込めませんでした。');
   };
   img.src = info.url;
@@ -212,46 +235,45 @@ async function renderQuestion() {
 }
 
 function failPhoto(message) {
-  const frame = $('photo-frame');
-  frame.classList.remove('is-ready');
+  $('photo-frame').classList.remove('is-ready');
   $('photo-status').innerHTML = message;
 }
 
 /* ---------- 解答 ---------- */
 
-function answer(architectId) {
+function answer(choiceId) {
   if (state.answered) return;
   state.answered = true;
 
-  const q = state.queue[state.index];
-  const correct = architectId === q.architect;
-  state.answers.push({ question: q, picked: architectId, correct });
+  const q = state.queue[state.index].question;
+  const correct = choiceId === q.answer;
+  state.answers.push({ question: q, picked: choiceId, correct });
 
   document.querySelectorAll('.choice').forEach((btn) => {
     btn.disabled = true;
-    const id = btn.dataset.architect;
-    if (id === q.architect) btn.classList.add('is-correct');
-    else if (id === architectId) btn.classList.add('is-wrong');
+    const id = btn.dataset.choice;
+    if (id === q.answer) btn.classList.add('is-correct');
+    else if (id === choiceId) btn.classList.add('is-wrong');
     else btn.classList.add('is-dim');
   });
 
   const line = $('verdict-line');
-  line.textContent = correct ? '正解' : `不正解 — 正解は ${byId[q.architect].name}`;
+  line.textContent = correct ? '正解' : `不正解 — 正解は ${byId[q.answer].name}`;
   line.className = `verdict-line ${correct ? 'ok' : 'ng'}`;
 
   $('detail-title').textContent = q.title;
-  $('detail-meta').textContent = `${byId[q.architect].name}／${q.year}年／${q.place}`;
+  $('detail-meta').textContent = QUIZ.meta(q, byId[q.answer]);
   $('detail-note').textContent = q.note;
 
-  const link = $('detail-link');
   const page = q._source && q._source.page;
+  const link = $('detail-link');
   link.hidden = !page;
   if (page) link.href = page;
 
   // 出典表示は解答後に（記事名が答えのヒントになるため）
-  if (q._source && q._source.page) {
+  if (page) {
     const cap = $('photo-caption');
-    cap.innerHTML = `写真: <a href="${q._source.page}" target="_blank" rel="noopener">${q._source.label}</a> より`;
+    cap.innerHTML = `写真: <a href="${page}" target="_blank" rel="noopener">${q._source.label}</a> より`;
     cap.hidden = false;
   }
 
@@ -277,15 +299,7 @@ function showResult() {
   const total = state.answers.length;
   const correct = state.answers.filter((a) => a.correct).length;
   const rate = correct / total;
-
-  const grades = [
-    [0.999, '巨匠', '全問正解。もはや設計者本人では。'],
-    [0.8,   '建築通', 'ディテールまでよく見えています。'],
-    [0.6,   '愛好家', '主要作はしっかり押さえています。'],
-    [0.4,   '見習い', '素材と輪郭に注目すると見分けやすくなります。'],
-    [0,     '初学者', 'まずは代表作から。もう一周してみましょう。'],
-  ];
-  const [, rank, comment] = grades.find(([min]) => rate >= min);
+  const [, rank, comment] = QUIZ.grades.find(([min]) => rate >= min);
 
   $('result-rank').textContent = rank;
   $('result-correct').textContent = correct;
@@ -297,7 +311,7 @@ function showResult() {
       <span class="mark ${ok ? 'ok' : 'ng'}">${ok ? '○' : '×'}</span>
       <span class="review-body">
         <span class="review-title">${q.title}</span><br>
-        <span class="review-sub">${byId[q.architect].name}${
+        <span class="review-sub">${byId[q.answer].name}${
           ok ? '' : ` — 回答: <span class="picked">${byId[picked].name}</span>`
         }</span>
       </span>
@@ -309,14 +323,15 @@ function showResult() {
 /* ---------- テーマ ---------- */
 
 function initTheme() {
-  const saved = (() => { try { return localStorage.getItem('archquiz.theme'); } catch (_) { return null; } })();
+  const key = `quiz.theme.${QUIZ.id}`;
+  const saved = (() => { try { return localStorage.getItem(key); } catch (_) { return null; } })();
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   document.documentElement.dataset.theme = saved || (prefersDark ? 'dark' : 'light');
 
   $('theme-toggle').addEventListener('click', () => {
-    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = next;
-    try { localStorage.setItem('archquiz.theme', next); } catch (_) {}
+    const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = nextTheme;
+    try { localStorage.setItem(key, nextTheme); } catch (_) {}
   });
 }
 
@@ -330,7 +345,8 @@ function initKeyboard() {
       return;
     }
     const i = KEYS.indexOf(e.key.toUpperCase());
-    if (i >= 0 && ARCHITECTS[i]) { e.preventDefault(); answer(ARCHITECTS[i].id); }
+    const choices = state.queue[state.index].choices;
+    if (i >= 0 && choices[i]) { e.preventDefault(); answer(choices[i].id); }
   });
 }
 
