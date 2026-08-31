@@ -52,6 +52,12 @@ https://roomhair.github.io/architect-quiz/
    （private リポジトリからの Pages 公開は有料プラン限定のため）
 2. **Settings → Pages → Build and deployment → Source** を **GitHub Actions** にする
 
+`build` ジョブは、配信するHTMLの `css` / `js` の参照にコミットSHAを付ける
+（`js/data.js?v=559c1231` のように）。ブラウザが古い css/js を掴んだまま
+新しいHTMLと混ざるのを防ぐためで、**リポジトリのファイルは相対パスのまま**なので
+`index.html` を直接開く使い方は変わらない。フッターにそのSHAを出しているので、
+表示中のページがどのビルドか判別できる。
+
 ワークフローは `build`（全ブランチ）と `deploy`（`main` のみ）に分かれている。
 Pages 環境は既定でデフォルトブランチからのデプロイしか許可しないため、
 実際に公開するには変更を `main` にマージする。
