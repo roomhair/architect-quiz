@@ -402,6 +402,8 @@ body {
  *
  * level は難易度。1 = 名前を知っていれば当たる代表作、2 = 建築を少し追っていれば
  * 分かるもの、3 = 作風を知らないと当てにくいもの。難易度の選択で絞り込む。
+ * level 1 は「有名作品のみ」で出題されるので、16人それぞれに最低1問は置くこと。
+ * level 2 は「すべて」でのみ出題される中間層。
  *
  * 写真について
  *   image を指定するとその URL / 相対パス（例: "images/yoyogi.jpg"）を最優先で使う。
@@ -422,9 +424,9 @@ const QUIZ = {
   choicesPerQuestion: 0,
 
   levels: [
-    { id: 'all',  label: 'すべて',       match: () => true },
-    { id: 'mid',  label: '有名作を除く', match: (q) => q.level >= 2 },
-    { id: 'deep', label: 'マニア向け',   match: (q) => q.level === 3 },
+    { id: 'all',    label: 'すべて',       match: () => true },
+    { id: 'famous', label: '有名作品のみ', match: (q) => q.level === 1 },
+    { id: 'deep',   label: 'マニア向け',   match: (q) => q.level === 3 },
   ],
 
   meta: (q, answer) => `${answer.name}／${q.year}／${q.place}`,
@@ -601,7 +603,7 @@ const QUIZ = {
       note:'7つのヴォールト屋根を細い鉄骨で架けた自邸。のちに大三島へ移築された。' },
 
     // ── 坂茂 ──────────────────────────────────────────
-    { id:'ban-metz', answer:'ban', level:2, image:'', title:'ポンピドゥー・センター・メス', year:'2010年', place:'フランス・メス',
+    { id:'ban-metz', answer:'ban', level:1, image:'', title:'ポンピドゥー・センター・メス', year:'2010年', place:'フランス・メス',
       wiki:{ja:'ポンピドゥー・センター・メス', en:'Centre Pompidou-Metz'},
       note:'中国の編み笠から着想した六角格子の木造屋根を、テフロン膜で覆う。' },
     { id:'ban-fuji', answer:'ban', level:2, image:'', title:'静岡県富士山世界遺産センター', year:'2017年', place:'静岡県富士宮市',
@@ -662,7 +664,7 @@ const QUIZ = {
       note:'瓦屋根の小さな棟を集落のように分棟配置。中央に木造の吹き抜けを置く。' },
 
     // ── 内藤廣 ────────────────────────────────────────
-    { id:'naito-kochi', answer:'naito', level:2, image:'', title:'高知駅', year:'2008年', place:'高知県高知市',
+    { id:'naito-kochi', answer:'naito', level:1, image:'', title:'高知駅', year:'2008年', place:'高知県高知市',
       wiki:{ja:'高知駅', en:'Kōchi Station'},
       note:'「くじらドーム」と呼ばれる大断面集成材のアーチが、ホーム全体を一息に覆う。' },
     { id:'naito-umi', answer:'naito', level:3, image:'', title:'鳥羽市立海の博物館', year:'1992年', place:'三重県鳥羽市',
@@ -723,7 +725,7 @@ const QUIZ = {
       note:'森の木漏れ日を思わせる、100個近い穴の開いた薄い屋根が公園の樹冠に紛れる。' },
 
     // ── 槇文彦 ────────────────────────────────────────
-    { id:'maki-makuhari', answer:'maki', level:2, image:'', title:'幕張メッセ', year:'1989年', place:'千葉県千葉市',
+    { id:'maki-makuhari', answer:'maki', level:1, image:'', title:'幕張メッセ', year:'1989年', place:'千葉県千葉市',
       wiki:{ja:'幕張メッセ', en:'Makuhari Messe'},
       note:'緩やかに湾曲した金属の大屋根が連なる。巨大施設をあくまで軽やかに見せる。' },
     { id:'maki-taiikukan', answer:'maki', level:2, image:'', title:'東京体育館', year:'1990年', place:'東京都渋谷区',
@@ -840,7 +842,7 @@ const QUIZ = {
     { id:'fujimori-jinchokan', answer:'fujimori', level:2, image:'', title:'神長官守矢史料館', year:'1991年', place:'長野県茅野市',
       wiki:{ja:'神長官守矢史料館', en:'Jinchokan Moriya Historical Museum'},
       note:'建築史家からの転身第一作。土壁と鉄平石の屋根を貫いて4本の柱が突き出す。' },
-    { id:'fujimori-takasugian', answer:'fujimori', level:2, image:'', title:'高過庵', year:'2004年', place:'長野県茅野市',
+    { id:'fujimori-takasugian', answer:'fujimori', level:1, image:'', title:'高過庵', year:'2004年', place:'長野県茅野市',
       wiki:{ja:'高過庵', en:'Takasugi-an'},
       note:'2本の栗の木の上、地上6mに載る茶室。梯子を登らないと入れない。' },
     { id:'fujimori-lacollina', answer:'fujimori', level:2, image:'', title:'ラ コリーナ近江八幡 草屋根', year:'2015年', place:'滋賀県近江八幡市',
