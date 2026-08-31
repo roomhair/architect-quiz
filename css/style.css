@@ -101,7 +101,8 @@ body {
   color: var(--ink-mute);
   margin-bottom: 8px;
 }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--bg-raised); }
+.field-note { font-size: 12px; color: var(--ink-mute); margin: 8px 0 0; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--bg-raised); }
 .seg-btn {
   appearance: none;
   border: 0;
