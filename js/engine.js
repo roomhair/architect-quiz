@@ -18,6 +18,32 @@
    ========================================================= */
 
 const $ = (id) => document.getElementById(id);
+
+/* エンジンが必要とする要素。index.html を別のクイズに作り替えたときや、
+   エンジンだけを新しくしたときの取りこぼしを、起動時に気づけるようにする。 */
+const REQUIRED_IDS = [
+  'screen-start', 'screen-quiz', 'screen-result',
+  'count-seg', 'btn-start', 'roster-list', 'theme-toggle',
+  'progress-text', 'score-text', 'progress-fill',
+  'photo-frame', 'photo-img', 'photo-status', 'photo-caption',
+  'choices', 'verdict', 'verdict-line',
+  'detail-title', 'detail-meta', 'detail-note', 'detail-link', 'btn-next',
+  'result-rank', 'result-correct', 'result-total', 'result-comment',
+  'review-list', 'btn-retry', 'btn-home',
+];
+
+const missingIds = REQUIRED_IDS.filter((id) => !$(id));
+if (missingIds.length) {
+  document.body.innerHTML =
+    '<div style="max-width:640px;margin:48px auto;padding:0 20px;' +
+    'font-family:system-ui,sans-serif;line-height:1.8">' +
+    '<h1 style="font-size:18px">index.html とエンジンが噛み合っていません</h1>' +
+    '<p>次の id を持つ要素が index.html にありません。</p>' +
+    '<p style="font-family:monospace;word-break:break-all">' + missingIds.join(', ') + '</p>' +
+    '<p>エンジンだけを新しくした場合は、index.html 側にも同じ変更が要ります。</p></div>';
+  throw new Error('index.html に必要な要素がありません: ' + missingIds.join(', '));
+}
+
 const byId = Object.fromEntries(QUIZ.choices.map((c) => [c.id, c]));
 const KEYS = (QUIZ.keys || 'ASDFGHJKLZXCVBNM').split(''); // 選択肢に順に割り当てるショートカット
 

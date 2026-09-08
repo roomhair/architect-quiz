@@ -118,6 +118,26 @@ Wikipedia への問い合わせは行われない。
 
 建築家を増やす場合は `QUIZ.choices` に足す。ボタンの並びと表示順はこの配列の順どおり。
 
+## エンジンの正は quiz-engine にある
+
+`js/engine.js` の正（オリジナル）は [roomhair/quiz-engine](https://github.com/roomhair/quiz-engine)
+に置く。**このリポジトリの `js/engine.js` はそのコピー**で、直接編集しない。
+エンジンを直したいときは quiz-engine 側を直す。
+
+`.github/workflows/engine-sync.yml` が毎週月曜と手動実行で quiz-engine の
+`js/engine.js` を取りに行き、差分があれば `engine-sync` ブランチにPRを出す。
+勝手に main へは入らないので、内容を見てからマージする。
+
+新しいクイズを作るときも quiz-engine を出発点にする。そうすれば
+出題ロジック・画像取得・採点・キーボード操作・配色切り替えは書かずに済み、
+`js/data.js` を書くだけで新しいクイズになる。
+
+### 同期PRをマージする前に見るところ
+
+エンジンが**新しい要素を要求していないか**。要求が増えていると `index.html` にも
+同じ id を足す必要がある。エンジンは起動時に必要な要素の有無を確かめ、足りなければ
+その id を画面に出して止まるので、ローカルで `index.html` を開けばすぐ分かる。
+
 ## 別のクイズに作り替える
 
 `js/engine.js` は題材を知らない。出題ロジック・画像取得・採点・キーボード操作・
@@ -146,5 +166,6 @@ js/engine.js    出題ロジック、画像取得、採点、結果表示（題�
 images/         自前の写真を置く場所（初期状態では空）
 dist/           1ファイル版の出力先
 build-standalone.js  css/js を index.html に埋め込んで dist/ に書き出す
-.github/workflows/pages.yml  GitHub Pages への自動デプロイ
+.github/workflows/pages.yml        GitHub Pages への自動デプロイ
+.github/workflows/engine-sync.yml  quiz-engine から engine.js を取り込むPRを出す
 ```
