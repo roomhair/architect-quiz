@@ -1,0 +1,78 @@
+name: Sync engine from quiz-engine
+
+# js/engine.js の正は roomhair/quiz-engine にある。
+# ここでは週1回と手動実行でそれを取りに行き、差分があればPRを出す。
+# 勝手にmainへは入れない（index.html 側の変更が要ることがあるため）。
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'   # 毎週月曜 00:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: engine-sync
+  cancel-in-progress: false
+
+env:
+  ENGINE_URL: https://raw.githubusercontent.com/roomhair/quiz-engine/main/js/engine.js
+  SYNC_BRANCH: engine-sync
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the canonical engine
+        id: fetch
+        run: |
+          code=$(curl -sSL -o /tmp/engine.js -w '%{http_code}' "$ENGINE_URL" || echo 000)
+          if [ "$code" = "404" ]; then
+            echo "::notice::$ENGINE_URL がまだありません。quiz-engine を用意すると同期が始まります。"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$code" != "200" ]; then
+            echo "::error::エンジンを取得できませんでした（HTTP $code）: $ENGINE_URL"
+            exit 1
+          fi
+          test -s /tmp/engine.js || { echo '::error::取得した engine.js が空です'; exit 1; }
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Compare with the local engine
+        id: diff
+        if: steps.fetch.outputs.skip == 'false'
+        run: |
+          if cmp -s /tmp/engine.js js/engine.js; then
+            echo 'エンジンは最新です。'
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open a pull request
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp /tmp/engine.js js/engine.js
+          node build-standalone.js
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -B "$SYNC_BRANCH"
+          git add js/engine.js dist/architect-quiz.html
+          git commit -m 'エンジンを quiz-engine の最新に合わせる'
+          git push -f origin "$SYNC_BRANCH"
+
+          open=$(gh pr list --head "$SYNC_BRANCH" --state open --json number --jq '.[].number' | head -1)
+          if [ -n "$open" ]; then
+            echo "既存のPR #$open を更新しました。"
+            exit 0
+          fi
+          gh pr create --head "$SYNC_BRANCH" --base main \
+            --title 'エンジンを quiz-engine の最新に合わせる' \
+            --body-file .github/engine-sync-pr-body.md
